@@ -22,6 +22,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+                android:name=".quiz.QuizActivity"
+                android:exported="false"
+                android:label="Quiz"
+                android:theme="@style/Theme.QuizApp" />
+        <activity
+                android:name=".gallery.GalleryActivity"
+                android:exported="false"
+                android:label="Gallery"
+                android:theme="@style/Theme.QuizApp" />
     </application>
 
 </manifest>
