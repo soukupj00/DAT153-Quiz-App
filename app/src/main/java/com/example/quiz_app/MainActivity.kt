@@ -11,6 +11,11 @@ import com.example.quiz_app.quiz.QuizActivity
  * MainActivity extends AppCompatActivity and sets up the main layout when the activity is created.
  * This one uses the XML layout as requested per the task, Gallery and Quiz use Compose
  * As such we do not use any custom buttons or backgrounds, just regular styling from XML
+ *
+ * I have also found this docs page:
+ * https://developer.android.com/develop/ui/compose/migrate/interoperability-apis/views-in-compose
+ * but I don't think that's what is wanted from us, as this way we only include the XML layout to
+ * a Compose file, which is not really stated in the requirements of the task
  */
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
