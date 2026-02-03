@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">Quiz-App</string>
+    <string name="gallery">Gallery</string>
+    <string name="quiz">Quiz</string>
+    <string name="back_to_menu">Back to Menu</string>
+    <string name="quiz_image_content_description">Quiz Image</string>
+    <string name="next">Next</string>
+    <string name="finish">Finish</string>
+    <string name="final_score">Final Score</string>
+    <string name="home">Home</string>
+    <string name="try_again">Try Again</string>
+    <string name="gallery_empty">The gallery is empty.</string>
+    <string name="preview_button">Preview Button</string>
+    <string name="question_format">Question %1$d / %2$d</string>
+    <string name="score_format">Score: %1$d / %2$d</string>
 </resources>
