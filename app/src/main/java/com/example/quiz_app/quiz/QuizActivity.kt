@@ -31,12 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import coil3.compose.rememberAsyncImagePainter
 import com.example.quiz_app.R
 import com.example.quiz_app.data.GalleryData
 import com.example.quiz_app.gallery.GalleryActivity
@@ -59,7 +58,7 @@ class QuizActivity : ComponentActivity() {
 
 @Composable
 fun QuizGame() {
-    LocalContext.current
+    val context = LocalContext.current
     // Read from the shared data source
     val allEntries = GalleryData.entries
     var quizRestartTrigger by remember { mutableIntStateOf(0) }
@@ -152,21 +151,20 @@ fun QuizScreen(
         Text(
             text = stringResource(id = R.string.score_format, score, questionNumber),
             style = MaterialTheme.typography.headlineMedium,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onPrimary
         )
         Spacer(modifier = Modifier.height(16.dp))
 
         // Custom progress bar with text overlay
         CustomProgressBar(
             progress = if (totalQuestions > 0) questionNumber.toFloat() / totalQuestions.toFloat() else 0f,
-            text = stringResource(id = R.string.question_format, questionNumber, totalQuestions),
+            text = stringResource(id = R.string.question_format, questionNumber, totalQuestions)
         )
-
         Spacer(modifier = Modifier.height(16.dp))
 
         // Image with larger size
         Image(
-            painter = painterResource(id = quizEntry.image),
+            painter = rememberAsyncImagePainter(quizEntry.image),
             contentDescription = stringResource(id = R.string.quiz_image_content_description),
             modifier = Modifier
                 .fillMaxWidth()
@@ -233,12 +231,12 @@ fun FinalScoreScreen(score: Int, total: Int, onTryAgain: () -> Unit) {
         Text(
             text = stringResource(id = R.string.final_score),
             style = MaterialTheme.typography.displayMedium,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onPrimary
         )
         Text(
             text = stringResource(id = R.string.score_format, score, total),
             style = MaterialTheme.typography.headlineLarge,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onPrimary
         )
         Spacer(modifier = Modifier.height(32.dp))
 
