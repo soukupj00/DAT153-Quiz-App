@@ -49,6 +49,12 @@ import com.example.quiz_app.data.GalleryData
 import com.example.quiz_app.types.GalleryEntry
 import com.example.quiz_app.ui.StandardLayout
 import java.io.File
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+
+
 
 /**
  * The GalleryActivity is responsible for displaying the collection of images
@@ -82,7 +88,7 @@ class GalleryActivity : ComponentActivity() {
 @Composable
 fun GalleryScreen(contentPadding: PaddingValues) {
     val context = LocalContext.current
-    val entries = GalleryData.entries
+    val entries = GalleryData.sortEntries()
 
     // State management for the dialogs
     var showSourceDialog by remember { mutableStateOf(false) }
@@ -169,11 +175,17 @@ fun GalleryScreen(contentPadding: PaddingValues) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(entries) { entry ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    var expanded by remember { mutableStateOf(false) } // für DropdownMenu
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(
+                                onLongPress = { expanded = true } // LongPress / Rechtsklick
+                            )
+                        }
+                    ) {
                         Image(
-                            // composable function from Coil, handles different image sources
-                            // entry.image can be an Int - a drawable resource ID for our built-in images
-                            // or a Uri - for user-added images
                             painter = rememberAsyncImagePainter(entry.image),
                             contentDescription = entry.name,
                             modifier = Modifier
@@ -187,6 +199,20 @@ fun GalleryScreen(contentPadding: PaddingValues) {
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 8.dp)
                         )
+
+                        // Dropdown-Menü zum Löschen
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = {
+                                    GalleryData.removeEntry(entry)
+                                    expanded = false
+                                }
+                            )
+                        }
                     }
                 }
             }
