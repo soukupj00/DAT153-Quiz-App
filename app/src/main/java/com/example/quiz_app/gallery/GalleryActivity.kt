@@ -1,13 +1,17 @@
 package com.example.quiz_app.gallery
 
-import android.Manifest
+import android.content.Intent
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,10 +26,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -37,44 +45,59 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
-import coil3.compose.rememberAsyncImagePainter
 import com.example.quiz_app.R
 import com.example.quiz_app.data.GalleryData
 import com.example.quiz_app.types.GalleryEntry
 import com.example.quiz_app.ui.StandardLayout
-import java.io.File
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
 
-
+enum class SortOrder {
+    ASCENDING, DESCENDING
+}
 
 /**
- * The GalleryActivity is responsible for displaying the collection of images
- * and allowing the user to add new images either from the device's gallery
- * or by taking a new photo with the camera.
- *
- * Why We chose Coil package - first Google answer and from the documentation it seemed like a
- * well maintained and used package for handling images in Android apps
- * It can intelligently handle different image sources. In our case, `entry.image` can be
- * either an Int (a drawable resource ID for our built-in images) or a Uri
- * (for user-added images). Coil automatically determines the source type and loads
- * the image asynchronously, handling caching and optimization for us.
- * https://coil-kt.github.io/coil/compose/
+ * The GalleryActivity is responsible for displaying the collection of images,
+ * allowing the user to add new images from the device's gallery,
+ * removing images and sorting them
  */
 class GalleryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            StandardLayout(title = stringResource(id = R.string.gallery)) { innerPadding ->
-                GalleryScreen(contentPadding = innerPadding)
+            var sortOrder by remember { mutableStateOf(SortOrder.ASCENDING) }
+            StandardLayout(
+                title = stringResource(id = R.string.gallery),
+                actions = {
+                    IconButton(onClick = {
+                        sortOrder = when (sortOrder) {
+                            SortOrder.ASCENDING -> SortOrder.DESCENDING
+                            SortOrder.DESCENDING -> SortOrder.ASCENDING
+                        }
+                    }) {
+                        when (sortOrder) {
+                            SortOrder.DESCENDING -> Icon(
+                                Icons.Default.KeyboardArrowUp,
+                                contentDescription = "Sort Ascending",
+                                tint = Color.White
+                            )
+
+                            SortOrder.ASCENDING -> Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Sort Descending",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                }
+            ) { innerPadding ->
+                GalleryScreen(contentPadding = innerPadding, sortOrder = sortOrder)
             }
         }
     }
@@ -86,69 +109,23 @@ class GalleryActivity : ComponentActivity() {
  * and coordinating the permission and activity result launchers
  */
 @Composable
-fun GalleryScreen(contentPadding: PaddingValues) {
+fun GalleryScreen(contentPadding: PaddingValues, sortOrder: SortOrder) {
     val context = LocalContext.current
-    val entries = GalleryData.sortEntries()
-
-    // State management for the dialogs
-    var showSourceDialog by remember { mutableStateOf(false) }
+    val entries = when (sortOrder) {
+        SortOrder.ASCENDING -> GalleryData.entries.sortedBy { it.name.lowercase() }
+        SortOrder.DESCENDING -> GalleryData.entries.sortedByDescending { it.name.lowercase() }
+    }
     var showNameDialog by remember { mutableStateOf(false) }
     var newImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var entryToDelete by remember { mutableStateOf<GalleryEntry?>(null) }
 
-    /**
-     * Creates a temporary, secure URI for storing a photo taken with the camera
-     * Camera needs a location to save the image it captures. We must provide this location as a URI
-     * By creating a temporary file, we a location where to store it and know how to access it
-     *
-     * Modern Android versions have strict security policies that prevent apps from sharing file URIs (file://) directly
-     * A FileProvider creates secure, shareable content URI (content://) that grants temporary access
-     * to a specific file or directory, sort of a workaround for this issue
-     * This function's logic is linked to the provider path defined in `res/xml/file_paths.xml`
-     * https://developer.android.com/reference/androidx/core/content/FileProvider
-     */
-    fun getTempUri(): Uri {
-        val imagePath = File(context.cacheDir, "images")
-        imagePath.mkdirs() // Ensure the 'images' subdirectory exists.
-        val tmpFile = File.createTempFile("temp_image_file", ".png", imagePath).apply {
-            createNewFile()
-            deleteOnExit() // Ensures the temp file is cleaned up when the app's VM terminates.
-        }
-        return FileProvider.getUriForFile(context, "${context.packageName}.provider", tmpFile)
-    }
-
-    // Launcher for picking an image from the gallery.
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { // If the user successfully selected an image, images URI is returned
+        uri?.let {
             newImageUri = it
             showNameDialog = true
-        }
-    }
-
-    // Launcher handles the result from the camera app.
-    val takePictureLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success: Boolean ->
-        if (success) {
-            newImageUri?.let {
-                showNameDialog = true
-            }
-        }
-    }
-
-    // Launcher handles the runtime camera permission request.
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            // If permission is granted, create a temp URI and launch the camera.
-            val tempUri = getTempUri()
-            newImageUri = tempUri
-            takePictureLauncher.launch(tempUri)
-        } else {
-            // I don't know if we should show some sort of alert when permission is denied?
-            // Most likely not as it's users choice
         }
     }
 
@@ -175,51 +152,75 @@ fun GalleryScreen(contentPadding: PaddingValues) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(entries) { entry ->
-                    var expanded by remember { mutableStateOf(false) } // für DropdownMenu
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = { expanded = true } // LongPress / Rechtsklick
-                            )
+                        modifier = Modifier.pointerInput(entry) {
+                            detectTapGestures(onLongPress = {
+                                showDeleteDialog = true
+                                entryToDelete = entry
+                            })
                         }
                     ) {
-                        Image(
-                            painter = rememberAsyncImagePainter(entry.image),
-                            contentDescription = entry.name,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f),
-                            contentScale = ContentScale.Crop
-                        )
+                        if (entry.isDrawable) {
+                            Image(
+                                painter = painterResource(id = entry.drawableId),
+                                contentDescription = entry.name,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f),
+                                contentScale = ContentScale.Crop
+                            )
+                            // Handles rendering of images that are not from drawable resources,
+                            // - images that have been added by the user from the gallery
+                        } else {
+                            // To display an image from a Uri, we first need to decode it into a Bitmap
+                            // The method for doing this differs based on the Android API level
+                            // IDK why, but google and AndroidStudio says so
+                            // - guess that's why Coil exists, is being used and recommended
+                            val bitmap = if (Build.VERSION.SDK_INT < 28) {
+                                // For android versions older then API 28, we use the getBitmap()
+                                // It takes a ContentResolver and the image's Uri to retrieve the bitmap
+                                MediaStore.Images.Media.getBitmap(
+                                    context.contentResolver,
+                                    entry.uri
+                                )
+                            } else {
+                                // For android API 28 and newer, we use the modern ImageDecoder API
+                                // which is recommended, should be safer and more efficient
+                                // Create a source from the Uri using the contentResolver
+                                val source =
+                                    ImageDecoder.createSource(context.contentResolver, entry.uri)
+                                // Decode the source into a Bitmap
+                                ImageDecoder.decodeBitmap(source)
+                            }
+                            // The standard Image composable requires ImageBitmap - Compose-specific
+                            // container for bitmap images. We convert our platform Bitmap to an ImageBitmap
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = entry.name,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f),
+                                // Crop scales the image to fill the bounds of the container,
+                                // maintaining the aspect ratio but cropping any parts of the image
+                                // that extend beyond the container's dimensions
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                         Text(
                             text = entry.name,
                             color = Color.White,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 8.dp)
                         )
-
-                        // Dropdown-Menü zum Löschen
-                        DropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Delete") },
-                                onClick = {
-                                    GalleryData.removeEntry(entry)
-                                    expanded = false
-                                }
-                            )
-                        }
                     }
                 }
             }
         }
 
         FloatingActionButton(
-            onClick = { showSourceDialog = true },
+            onClick = { pickImageLauncher.launch("image/*") },
             shape = CircleShape,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -229,58 +230,34 @@ fun GalleryScreen(contentPadding: PaddingValues) {
         }
     }
 
-    if (showSourceDialog) {
-        ImageSourceDialog(
-            onDismiss = { showSourceDialog = false },
-            onGalleryClick = {
-                showSourceDialog = false
-                pickImageLauncher.launch("image/*")
-            },
-            onCameraClick = {
-                showSourceDialog = false
-                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-            }
-        )
-    }
-
     // Ask user for name of image, if successful, add to GalleryData object
     if (showNameDialog) {
         AddNameDialog(
             onDismiss = { showNameDialog = false },
             onConfirm = { name ->
-                newImageUri?.let {
-                    GalleryData.addEntry(GalleryEntry(name, it))
+                newImageUri?.let { uri ->
+                    try {
+                        val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+                        GalleryData.addEntry(GalleryEntry(name, uri))
+                    } catch (e: SecurityException) {
+                        e.printStackTrace()
+                    }
                 }
                 showNameDialog = false
             }
         )
     }
-}
 
-/**
- * Dialog that asks the user to choose between the Gallery and Camera as an image source.
- */
-@Composable
-fun ImageSourceDialog(
-    onDismiss: () -> Unit,
-    onGalleryClick: () -> Unit,
-    onCameraClick: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Image") },
-        text = { Text("Choose a source for your new image.") },
-        confirmButton = {
-            Button(onClick = onGalleryClick) {
-                Text("Gallery")
+    if (showDeleteDialog) {
+        DeleteConfirmationDialog(
+            onDismiss = { showDeleteDialog = false },
+            onConfirm = {
+                entryToDelete?.let { GalleryData.removeEntry(it) }
+                showDeleteDialog = false
             }
-        },
-        dismissButton = {
-            Button(onClick = onCameraClick) {
-                Text("Camera")
-            }
-        }
-    )
+        )
+    }
 }
 
 /**
@@ -303,6 +280,28 @@ fun AddNameDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
         confirmButton = {
             Button(onClick = { onConfirm(name) }) {
                 Text("Add")
+            }
+        }
+    )
+}
+
+@Composable
+fun DeleteConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete Image") },
+        text = { Text("Are you sure you want to delete this image?") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
             }
         }
     )
