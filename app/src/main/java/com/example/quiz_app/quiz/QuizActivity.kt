@@ -2,7 +2,10 @@ package com.example.quiz_app.quiz
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.ImageDecoder
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -31,7 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -59,7 +62,6 @@ class QuizActivity : ComponentActivity() {
 
 @Composable
 fun QuizGame() {
-    LocalContext.current
     // Read from the shared data source
     val allEntries = GalleryData.entries
     var quizRestartTrigger by remember { mutableIntStateOf(0) }
@@ -82,50 +84,52 @@ fun QuizGame() {
         }
     }
 
-    StandardLayout(title = stringResource(id = R.string.quiz)) {
-        if (remainingEntries.isEmpty()) {
-            // Show final score screen when all questions are answered.
-            FinalScoreScreen(
-                score = score,
-                total = attempts,
-                onTryAgain = {
-                    // Reset all the states to restart the quiz
-                    score = 0
-                    attempts = 0
-                    isAnswered = false
-                    selectedOption = null
-                    quizRestartTrigger++ // Trigger recomposition to get a new shuffled list
-                }
-            )
-        } else {
-            // Show the quiz screen if there are questions left
-            currentQuizEntry?.let { entry ->
-                val totalQuestions = galleryForQuiz.size
-                val questionNumber = totalQuestions - remainingEntries.size + 1
-                QuizScreen(
-                    quizEntry = entry,
+    StandardLayout(title = stringResource(id = R.string.quiz)) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (remainingEntries.isEmpty()) {
+                FinalScoreScreen(
                     score = score,
-                    questionNumber = questionNumber,
-                    totalQuestions = totalQuestions,
-                    isAnswered = isAnswered,
-                    selectedOption = selectedOption,
-                    onAnswerSelected = { option ->
-                        if (!isAnswered) {
-                            selectedOption = option
-                            attempts++
-                            if (option == entry.correctName) {
-                                score++
-                            }
-                            isAnswered = true
-                        }
-                    },
-                    onNextClicked = {
+                    total = attempts,
+                    onTryAgain = {
+                        score = 0
+                        attempts = 0
                         isAnswered = false
                         selectedOption = null
-                        // Move to the next question by dropping the current one
-                        remainingEntries = remainingEntries.drop(1)
+                        quizRestartTrigger++
                     }
                 )
+            } else {
+                currentQuizEntry?.let { entry ->
+                    val totalQuestions = galleryForQuiz.size
+                    val questionNumber = totalQuestions - remainingEntries.size + 1
+                    QuizScreen(
+                        quizEntry = entry,
+                        score = score,
+                        questionNumber = questionNumber,
+                        totalQuestions = totalQuestions,
+                        isAnswered = isAnswered,
+                        selectedOption = selectedOption,
+                        onAnswerSelected = { option ->
+                            if (!isAnswered) {
+                                selectedOption = option
+                                attempts++
+                                if (option == entry.correctName) {
+                                    score++
+                                }
+                                isAnswered = true
+                            }
+                        },
+                        onNextClicked = {
+                            isAnswered = false
+                            selectedOption = null
+                            remainingEntries = remainingEntries.drop(1)
+                        }
+                    )
+                }
             }
         }
     }
@@ -142,6 +146,7 @@ fun QuizScreen(
     onAnswerSelected: (String) -> Unit,
     onNextClicked: () -> Unit
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -152,28 +157,45 @@ fun QuizScreen(
         Text(
             text = stringResource(id = R.string.score_format, score, questionNumber),
             style = MaterialTheme.typography.headlineMedium,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onPrimary
         )
         Spacer(modifier = Modifier.height(16.dp))
 
         // Custom progress bar with text overlay
         CustomProgressBar(
             progress = if (totalQuestions > 0) questionNumber.toFloat() / totalQuestions.toFloat() else 0f,
-            text = stringResource(id = R.string.question_format, questionNumber, totalQuestions),
+            text = stringResource(id = R.string.question_format, questionNumber, totalQuestions)
         )
-
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Image with larger size
-        Image(
-            painter = painterResource(id = quizEntry.image),
-            contentDescription = stringResource(id = R.string.quiz_image_content_description),
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f) // Makes the image square
-                .padding(horizontal = 16.dp),
-            contentScale = ContentScale.Crop
-        )
+        if (quizEntry.isDrawable) {
+            Image(
+                painter = painterResource(id = quizEntry.drawableId),
+                contentDescription = stringResource(id = R.string.quiz_image_content_description),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .padding(horizontal = 16.dp),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            val bitmap = if (Build.VERSION.SDK_INT < 28) {
+                MediaStore.Images.Media.getBitmap(context.contentResolver, quizEntry.uri)
+            } else {
+                val source = ImageDecoder.createSource(context.contentResolver, quizEntry.uri)
+                ImageDecoder.decodeBitmap(source)
+            }
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = stringResource(id = R.string.quiz_image_content_description),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .padding(horizontal = 16.dp),
+                contentScale = ContentScale.Crop
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // 2x2 Grid of answer buttons
@@ -233,12 +255,12 @@ fun FinalScoreScreen(score: Int, total: Int, onTryAgain: () -> Unit) {
         Text(
             text = stringResource(id = R.string.final_score),
             style = MaterialTheme.typography.displayMedium,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onPrimary
         )
         Text(
             text = stringResource(id = R.string.score_format, score, total),
             style = MaterialTheme.typography.headlineLarge,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onPrimary
         )
         Spacer(modifier = Modifier.height(32.dp))
 

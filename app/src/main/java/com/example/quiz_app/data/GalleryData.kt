@@ -16,12 +16,14 @@ object GalleryData {
     private val _entries = mutableStateListOf(
         GalleryEntry("Jupiter", R.drawable.jupiter),
         GalleryEntry("Mars", R.drawable.mars),
-        GalleryEntry("Uranus", R.drawable.uranus),
-        GalleryEntry("Venus", R.drawable.venus)
+        GalleryEntry("Venus", R.drawable.venus),
+        GalleryEntry("Uranus", R.drawable.uranus)
     )
 
     val entries: List<GalleryEntry>
         get() = _entries
+
+
 
     /**
      * Adds a new entry to the gallery.
@@ -30,4 +32,11 @@ object GalleryData {
     fun addEntry(entry: GalleryEntry) {
         _entries.add(entry)
     }
+    fun removeEntry(entry: GalleryEntry) {
+        _entries.remove(entry)
+    }
+    fun sortEntries(): List<GalleryEntry> {
+        return _entries.sortedBy { it.name.lowercase() }
+    }
+
 }
