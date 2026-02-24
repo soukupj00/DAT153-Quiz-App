@@ -57,12 +57,17 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     // Room and ViewModel dependencies
-    val room_version = "2.6.1"
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
-
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+    // Espresso testing dependencies taken from:
+    // https://github.com/VolkerStolz/introToAndroid5e/blob/master/Chapter21-Testing/PasswordMatcher/
+    androidTestImplementation(libs.androidx.runner)
+    androidTestImplementation(libs.androidx.espresso.core.v350)
+    androidTestImplementation(libs.androidx.espresso.contrib)
+    androidTestImplementation(libs.androidx.espresso.intents)
 }
 
 ksp {

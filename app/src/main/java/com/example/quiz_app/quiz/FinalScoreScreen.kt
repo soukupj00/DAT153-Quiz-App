@@ -1,6 +1,5 @@
 package com.example.quiz_app.quiz
 
-import android.app.Activity
 import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +18,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.quiz_app.MainActivity
 import com.example.quiz_app.R
 import com.example.quiz_app.gallery.GalleryActivity
 import com.example.quiz_app.ui.AnimatedGlowingButton
@@ -66,7 +66,15 @@ private fun PortraitFinalScoreLayout(score: Int, total: Int, onTryAgain: () -> U
         Spacer(modifier = Modifier.height(48.dp))
 
         AnimatedGlowingButton(
-            onClick = { (context as? Activity)?.finish() },
+            onClick = {
+                // we use FLAG_ACTIVITY_CLEAR_TOP to clear the backstack, ensuring that clicking
+                // "Back" from the home screen won't return the user to the finished quiz
+                // FLAG_ACTIVITY_SINGLE_TOP ensures that if MainActivity is already at the top,
+                // we don't create a brand-new second copy of it
+                context.startActivity(Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                })
+            },
             text = stringResource(id = R.string.home)
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -105,7 +113,15 @@ private fun LandscapeFinalScoreLayout(score: Int, total: Int, onTryAgain: () -> 
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             AnimatedGlowingButton(
-                onClick = { (context as? Activity)?.finish() },
+                onClick = {
+                    // we use FLAG_ACTIVITY_CLEAR_TOP to clear the backstack, ensuring that clicking
+                    // "Back" from the home screen won't return the user to the finished quiz
+                    // FLAG_ACTIVITY_SINGLE_TOP ensures that if MainActivity is already at the top,
+                    // we don't create a brand-new second copy of it
+                    context.startActivity(Intent(context, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    })
+                },
                 text = stringResource(id = R.string.home)
             )
             AnimatedGlowingButton(
