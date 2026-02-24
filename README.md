@@ -1,27 +1,70 @@
 # DAT153-Quiz-App
-This is the first oblig, deadline Monday, 9th February. Please submit your solution as a link to a public Git repository (e.g. on Codeberg, Gitlab, BitBucket, GitHub, ...) in groups of 2 or 3 students. We will review the app and your code with your group in one of the lab sessions after the deadline, and you will have the chance to revise your app once if anything doesn't work. Please do ask for help on time if you get stuck somewhere! This assignment will be marked as passed when you've passed the review in the lab between the 9th and 16th.
 
-## The Quiz app
-This little app should implement an easy game where you have to match names and photos (or a random selection of cute animal pictures). There are two core activities, which the user should be able to choose from when the application starts:
+An Android Quiz application where users match planet names with their respective images. This project demonstrates modern Android development practices using Jetpack Compose, Room Database, and Content Providers.
 
-- the "gallery": it shows all names & pictures, if necessary, letting the user scroll through the list. There should be buttons for adding a new entry, removing an existing entry (e.g. by clicking an image), and sorting all existing entries alphabetical order or reverse order (from A to Z or from Z to A).
-- the "quiz": When users click on this activity, the app will randomly select a photo from the gallery, and shows it on the screen. The app should present the right name for the photo and two wrong names in random order, and the user has to select the one they think is correct. After submission, there should be an indication by the app if the name was correct or not. If not, the app should show the correct name. After that, the whole process repeats until the user decides to leave this activity. The app should keep track of the score (the number of correct answers vs all attempts) and show it on the screen during the quiz.
-- The "gallery" has the "add entry"-functionality: Here the user can add a new entry (i.e., a pair of a photo and the associated name). Please allow the user to choose an existing photo from his/her phone or enable the user to take a photo using his/her camera (using the camera is an optional feature, but you must at least let the user choose from the media gallery). The name/photo pair should then of course be available to the "gallery" and the "quiz".
+## Project Structure
 
+The application follows a clean architecture pattern, organized into the following packages:
 
-**Other remarks:**
+- **`data`**: Handles data persistence and sharing.
+    - `AppDatabase`: Room database setup with a thread-safe Singleton pattern.
+    - `QuizItem`: The Entity representing a name/image pair in the database.
+    - `QuizItemDao`: Defines the SQL operations for the database.
+    - `QuizRepository`: An abstraction layer that provides a clean API for the rest of the app to access data.
+    - `QuizProvider`: A **ContentProvider** that exposes the names and image URIs to external applications (read-only).
+- **`quiz`**: Contains the logic and UI for the quiz game.
+    - `QuizViewModel`: Manages the quiz state, scoring, and persistence across process death using `SavedStateHandle`.
+    - `QuizScreen`: A responsive Compose UI that adapts to portrait and landscape orientations.
+    - `FinalScoreScreen`: Displays the results and navigation options at the end of a quiz.
+- **`gallery`**: Manages the collection of quiz items.
+    - `GalleryActivity`: The host for the gallery UI, managing top-level sorting state.
+    - `GalleryScreen`: A dynamic grid that allows users to view, add (via `OpenDocument` intent), and delete quiz items.
+- **`types`**: Common data classes used across the application.
+- **`ui`**: Shared UI components and theme definitions.
 
-- you must design the "main menu" using an XML-based layout. Use Compose for all the other UIs.
-- don't immediately try to use one of the fancy databases such as SQLite or Rooms! Use a simple datastructure from the Collections interface to maintain photos & names! Use the Application-class (see below) to share this datastructure throughout the app.
-- add *three* photos (at least) and names to the app through the resource folder, and use it to initialize your database when the app starts! That is, load the image data and put it into your datastructure. (Make sure that the images are not too large, because it will also be in Git -- you can also of course use a cat-pic instead of your real face.)
-- do not worry about persistently storing new entries (or the score) on the phone. We will add this functionality in the next oblig, for now it is okay if your app "forgets" everything except for the builtin-photos above when we restart the app.
-- Make sure navigating back from an activity works correctly (common mistakes: internal data structure not updating correctly when adding/removing, gallery not updating after adding/deleting, memory leak when dealing with image files).
-- Document your code!
-- Please use git "properly", that is, only store the Android Studio project, not generated files like JARs and class-files.
-- In future obligs, we will work on storing the data (with new entries) on the phone, writing tests, and integration with other services on the phone.
+## Features
 
-### Some Useful Links
-Use e.g the ACTION_GET_CONTENT/ACTION_OPEN_DOCUMENT-intent to let the user choose an existing image -- https://developer.android.com/guide/topics/providers/document-providerLenker til eit ekstern område., 
-https://developer.android.com/training/data-storage/shared/documents-files#bitmapLenker til eit ekstern område.
-Sharing state throughout an application (one of many possible ways) -- https://developer.android.com/reference/kotlin/android/app/ApplicationLenker til eit ekstern område.
-An alternative in Kotlin to RecyclerView: Lazy listLenker til eit ekstern område.
+- **Responsive Design**: Custom layouts for both portrait and landscape modes.
+- **Data Persistence**: Uses Room to store built-in planets and user-added photos.
+- **Modern UI**: Built entirely with Jetpack Compose (except for the XML-based Main Menu as per requirements).
+- **Content Sharing**: External apps can query the quiz database via a published Content Provider.
+
+## Testing
+
+### Manual Testing (Content Provider)
+
+To verify the `QuizProvider` and inspect the database externally, you can use the Android Debug Bridge (adb):
+
+1. Ensure the app is installed and running on a device or emulator.
+2. Run the following command in your terminal:
+   ```bash
+   adb shell content query --uri content://com.example.quiz_app.provider/quiz_items
+   ```
+
+**Expected Output:**
+```shell
+Row: 0 name=Jupiter, URI=android.resource://com.example.quiz_app/2131165280
+Row: 1 name=Mars, URI=android.resource://com.example.quiz_app/2131165281
+Row: 2 name=Venus, URI=android.resource://com.example.quiz_app/2131165299
+Row: 3 name=Uranus, URI=android.resource://com.example.quiz_app/2131165298
+```
+
+### Future Automated Testing
+
+The project is structured to support automated testing in future iterations:
+
+- **Unit Tests (`test` artifact)**: 
+    - Will be used to test `QuizViewModel` logic (scoring, question rotation) and `generateQuizEntry` utility functions.
+    - Focus on verifying business logic in isolation without Android dependencies.
+- **Instrumented Tests (`androidTest` artifact)**:
+    - Will be used for UI testing with **Compose Test Rule**.
+    - Will verify database integrations and end-to-end quiz flows on actual devices.
+
+## Installation
+
+1. Clone the repository.
+2. Open the project in **Android Studio Ladybug (2024.2.1)** or newer.
+3. Sync Gradle and run the `:app` module.
+
+---
+*Developed as part of DAT153 - Western Norway University of Applied Sciences.*
