@@ -41,6 +41,11 @@
                 android:label="@string/gallery"
                 android:theme="@style/Theme.QuizApp" />
 
+        <provider
+            android:name=".data.QuizProvider"
+            android:authorities="com.example.quiz_app.provider"
+            android:exported="true" />
+
     </application>
 
 </manifest>
