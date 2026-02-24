@@ -18,7 +18,7 @@ import com.example.quiz_app.R
 import com.example.quiz_app.ui.StandardLayout
 
 class QuizActivity : ComponentActivity() {
-    private val viewModel: QuizViewModel by viewModels()
+    val viewModel: QuizViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +42,7 @@ fun QuizGame(viewModel: QuizViewModel) {
                 is QuizUiState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
+
                 is QuizUiState.Question -> {
                     QuizScreen(
                         quizEntry = state.entry,
@@ -54,6 +55,7 @@ fun QuizGame(viewModel: QuizViewModel) {
                         onNextClicked = { viewModel.nextQuestion() }
                     )
                 }
+
                 is QuizUiState.Finished -> {
                     FinalScoreScreen(
                         score = state.score,
