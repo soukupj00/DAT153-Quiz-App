@@ -71,7 +71,7 @@ fun testSomething() {
 #### Navigation Test
 
 The Navigation Test verifies the navigation from MainActivity to GalleryActivity.
-This is achived by using the functionallity of the Espresso Intents.
+This is archived by using the functionality of the Espresso Intents.
 1. We use onView() to assert that the state of the gallery button equals isDisplayed().
 2. Using onView() we perform a click action on the button.
 3. Using intended() we assert that the correct activity is launched.
@@ -125,7 +125,7 @@ This test verifies adding and deleting an entry in the gallery.
 It uses Intent Stubbing to simulate picking an image from the device.
 
 ##### Add:
-1. Prepare a dummy image using an URI parsed from our apps ressources
+1. Prepare a dummy image using an URI parsed from our apps resources
 2. Create a stub result for the image picker intent
 3. Stub the ACTION_OPEN_DOCUMENT intent to return our result without UI
 4. We click on the "Add Image" button
@@ -154,13 +154,13 @@ It uses Intent Stubbing to simulate picking an image from the device.
 
 #### FullQuizRun Test
 This test simulates a complete walkthrough of the quiz. 
-It verifies the scoring locic with a mix of correct and incorect answers and checks that the final navigation leads back to the  home screen. 
+It verifies the scoring logic with a mix of correct and incorrect answers and checks that the final navigation leads back to the  home screen. 
 
 1. Use createAndroidComposeRule to launch QuizActivity
 2. Select the correct answer for the first question -> Verify that the score is 1/1
-3. Select an incorect answer for the second question -> Verify that the score is 1/2
+3. Select an incorrect answer for the second question -> Verify that the score is 1/2
 4. Select the correct answer for the third question -> Verify that the score is 2/3
-5. Select an incorect answer for the fourth question -> Verify that the score is 2/4
+5. Select an incorrect answer for the fourth question -> Verify that the score is 2/4
 6. Click the "Finish" button -> Verify that the final score is 2/4
 7. Click the "Home" button
 8. Verify that the intent for MainActivity is launched
