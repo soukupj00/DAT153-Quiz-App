@@ -1,7 +1,7 @@
 package com.example.quiz_app.quiz
 
 import android.app.Application
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -57,7 +57,7 @@ class QuizViewModel(application: Application, private val savedStateHandle: Save
             repository.allItems.collect { items ->
                 if (items.isNotEmpty()) {
                     val newAllEntries = items.map { item ->
-                        GalleryEntry(item.name, if (item.isDrawable) item.uri.substringAfterLast("/").toInt() else Uri.parse(item.uri))
+                        GalleryEntry(item.name, item.uri.toUri())
                     }
 
                     // Check for new entries that are not yet in the quiz.

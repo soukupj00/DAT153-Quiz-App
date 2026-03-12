@@ -5,8 +5,10 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -18,15 +20,13 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.quiz_app.types.GalleryEntry
 
 /**
  * Represents a single item in the Gallery grid.
- * Displays an image (from resources or URI) and its associated name.
- * Supports long-press interaction for actions like deletion.
+ * Displays an image from a URI and its associated name.
  *
  * @param entry The data model for the gallery item.
  * @param onLongPress Callback triggered when the user performs a long-press on the item.
@@ -46,36 +46,22 @@ fun GalleryItem(
             detectTapGestures(onLongPress = { onLongPress() })
         }
     ) {
-        if (entry.isDrawable) {
-            // Render images bundled with the app resources
-            Image(
-                painter = painterResource(id = entry.drawableId),
-                contentDescription = entry.name,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            // Render images selected by the user from external storage via URI
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f),
+            contentAlignment = Alignment.Center
+        ) {
             val bitmap = if (Build.VERSION.SDK_INT < 28) {
-                // Legacy method for retrieving bitmaps from URI
-                MediaStore.Images.Media.getBitmap(
-                    context.contentResolver,
-                    entry.uri
-                )
+                MediaStore.Images.Media.getBitmap(context.contentResolver, entry.uri)
             } else {
-                // Modern ImageDecoder API for API 28+
-                val source =
-                    ImageDecoder.createSource(context.contentResolver, entry.uri)
+                val source = ImageDecoder.createSource(context.contentResolver, entry.uri)
                 ImageDecoder.decodeBitmap(source)
             }
             Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = entry.name,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
         }

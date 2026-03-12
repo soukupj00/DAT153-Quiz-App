@@ -1,9 +1,11 @@
 package com.example.quiz_app.quiz
 
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,16 +24,17 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.quiz_app.R
@@ -40,6 +43,8 @@ import com.example.quiz_app.ui.AnimatedGlowingButton
 import com.example.quiz_app.ui.CustomProgressBar
 import com.example.quiz_app.ui.theme.CorrectAnswer
 import com.example.quiz_app.ui.theme.IncorrectAnswer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Main quiz screen responsible for displaying the question image and multiple choice options.
@@ -68,9 +73,27 @@ fun QuizScreen(
     val configuration = LocalConfiguration.current
 
     if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-        LandscapeQuizLayout(quizEntry, score, questionNumber, totalQuestions, isAnswered, selectedOption, onAnswerSelected, onNextClicked)
+        LandscapeQuizLayout(
+            quizEntry,
+            score,
+            questionNumber,
+            totalQuestions,
+            isAnswered,
+            selectedOption,
+            onAnswerSelected,
+            onNextClicked
+        )
     } else {
-        PortraitQuizLayout(quizEntry, score, questionNumber, totalQuestions, isAnswered, selectedOption, onAnswerSelected, onNextClicked)
+        PortraitQuizLayout(
+            quizEntry,
+            score,
+            questionNumber,
+            totalQuestions,
+            isAnswered,
+            selectedOption,
+            onAnswerSelected,
+            onNextClicked
+        )
     }
 }
 
@@ -79,8 +102,14 @@ fun QuizScreen(
  */
 @Composable
 private fun PortraitQuizLayout(
-    quizEntry: QuizEntry, score: Int, questionNumber: Int, totalQuestions: Int,
-    isAnswered: Boolean, selectedOption: String?, onAnswerSelected: (String) -> Unit, onNextClicked: () -> Unit
+    quizEntry: QuizEntry,
+    score: Int,
+    questionNumber: Int,
+    totalQuestions: Int,
+    isAnswered: Boolean,
+    selectedOption: String?,
+    onAnswerSelected: (String) -> Unit,
+    onNextClicked: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -105,7 +134,7 @@ private fun PortraitQuizLayout(
         Spacer(modifier = Modifier.height(16.dp))
 
         AnswerGrid(quizEntry, isAnswered, selectedOption, onAnswerSelected)
-        
+
         NextButton(isAnswered, questionNumber, totalQuestions, onNextClicked)
     }
 }
@@ -115,27 +144,41 @@ private fun PortraitQuizLayout(
  */
 @Composable
 private fun LandscapeQuizLayout(
-    quizEntry: QuizEntry, score: Int, questionNumber: Int, totalQuestions: Int,
-    isAnswered: Boolean, selectedOption: String?, onAnswerSelected: (String) -> Unit, onNextClicked: () -> Unit
+    quizEntry: QuizEntry,
+    score: Int,
+    questionNumber: Int,
+    totalQuestions: Int,
+    isAnswered: Boolean,
+    selectedOption: String?,
+    onAnswerSelected: (String) -> Unit,
+    onNextClicked: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Display score and progress bar at the top, spanning the whole width
+        // Display the score and progress bar at the top, spanning the whole width
         ScoreAndProgress(score, questionNumber, totalQuestions)
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Row(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Image takes up slightly more space than answers
-            QuizImage(quizEntry, modifier = Modifier.weight(1.3f).fillMaxHeight(), contentScale = ContentScale.Fit)
-            
+            QuizImage(
+                quizEntry,
+                modifier = Modifier
+                    .weight(1.3f)
+                    .fillMaxHeight(),
+                contentScale = ContentScale.Fit
+            )
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -170,38 +213,50 @@ private fun ScoreAndProgress(score: Int, questionNumber: Int, totalQuestions: In
 
 /**
  * Displays the image for the quiz entry, handling both drawable resources and URIs.
+ * Uses an asynchronous loader to avoid blocking the main thread.
  */
 @Composable
 private fun QuizImage(
-    quizEntry: QuizEntry, 
+    quizEntry: QuizEntry,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit
 ) {
     val context = LocalContext.current
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        if (quizEntry.isDrawable) {
-            Image(
-                painter = painterResource(id = quizEntry.drawableId),
-                contentDescription = stringResource(id = R.string.quiz_image_content_description),
-                modifier = Modifier.fillMaxSize(),
-                contentScale = contentScale
-            )
-        } else {
-            val bitmap = if (Build.VERSION.SDK_INT < 28) {
-                MediaStore.Images.Media.getBitmap(context.contentResolver, quizEntry.uri)
-            } else {
-                val source = ImageDecoder.createSource(context.contentResolver, quizEntry.uri)
-                ImageDecoder.decodeBitmap(source)
+
+    // produceState automatically manages the coroutine lifecycle and updates the UI
+    val bitmapState = produceState<Bitmap?>(initialValue = null, quizEntry.uri) {
+        value = try {
+            withContext(Dispatchers.IO) {
+                if (Build.VERSION.SDK_INT < 28) {
+                    @Suppress("DEPRECATION")
+                    MediaStore.Images.Media.getBitmap(context.contentResolver, quizEntry.uri)
+                } else {
+                    val source = ImageDecoder.createSource(context.contentResolver, quizEntry.uri)
+                    ImageDecoder.decodeBitmap(source)
+                }
             }
+        } catch (e: Exception) {
+            Log.e("QuizImage", "Error loading bitmap from URI: ${quizEntry.uri}", e)
+            null
+        }
+    }
+
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        val bitmap = bitmapState.value
+        if (bitmap != null) {
             Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = stringResource(id = R.string.quiz_image_content_description),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale
             )
+        } else {
+            // Show a progress indicator while the image is loading
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
         }
     }
 }
+
 
 /**
  * Displays a 2x2 grid of answer options.
@@ -241,9 +296,16 @@ private fun AnswerGrid(
  * Displays the navigation button shown after a question has been answered.
  */
 @Composable
-private fun NextButton(isAnswered: Boolean, questionNumber: Int, totalQuestions: Int, onNextClicked: () -> Unit) {
+private fun NextButton(
+    isAnswered: Boolean,
+    questionNumber: Int,
+    totalQuestions: Int,
+    onNextClicked: () -> Unit
+) {
     Box(
-        modifier = Modifier.height(80.dp).fillMaxWidth(),
+        modifier = Modifier
+            .height(80.dp)
+            .fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         if (isAnswered) {
