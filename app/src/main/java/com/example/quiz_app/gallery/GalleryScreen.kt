@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.example.quiz_app.R
 import com.example.quiz_app.data.AppDatabase
 import com.example.quiz_app.data.QuizItem
@@ -67,7 +69,8 @@ fun GalleryScreen(contentPadding: PaddingValues, sortOrder: SortOrder) {
         QuizRepository(dao)
     }
 
-    var entries by remember { mutableStateOf<List<GalleryEntry>>(emptyList()) }
+    // Using null as initial state to distinguish between "loading" and "empty".
+    var entries by remember { mutableStateOf<List<GalleryEntry>?>(null) }
     var rawItems by remember { mutableStateOf<List<QuizItem>>(emptyList()) }
 
     // `LaunchedEffect(Unit)` runs this block once when the composable enters the composition.
@@ -76,20 +79,13 @@ fun GalleryScreen(contentPadding: PaddingValues, sortOrder: SortOrder) {
         repository.allItems.collect { items ->
             rawItems = items
             entries = items.map { item ->
+                // Both resources and files are now handled via URIs.
                 GalleryEntry(
                     item.name,
-                    if (item.isDrawable) item.uri.substringAfterLast("/").toInt() else Uri.parse(
-                        item.uri
-                    )
+                    item.uri.toUri()
                 )
             }
         }
-    }
-
-    // Sort entries based on the selected order
-    val sortedEntries = when (sortOrder) {
-        SortOrder.ASCENDING -> entries.sortedBy { it.name.lowercase() }
-        SortOrder.DESCENDING -> entries.sortedByDescending { it.name.lowercase() }
     }
 
     var showNameDialog by remember { mutableStateOf(false) }
@@ -97,8 +93,7 @@ fun GalleryScreen(contentPadding: PaddingValues, sortOrder: SortOrder) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var entryToDelete by remember { mutableStateOf<GalleryEntry?>(null) }
 
-    // `rememberLauncherForActivityResult` is a modern way to handle Activity results (like picking an image).
-    // It safely manages the lifecycle of the launcher.
+    // `rememberLauncherForActivityResult` is a modern way to handle Activity results.
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -113,9 +108,22 @@ fun GalleryScreen(contentPadding: PaddingValues, sortOrder: SortOrder) {
             .fillMaxSize()
             .padding(contentPadding)
     ) {
-        if (sortedEntries.isEmpty()) {
+        val currentEntries = entries
+        if (currentEntries == null) {
+            // Show a loading indicator while the first data emission is pending.
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center),
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        } else if (currentEntries.isEmpty()) {
             EmptyGalleryText()
         } else {
+            // Sort entries only when we have data.
+            val sortedEntries = when (sortOrder) {
+                SortOrder.ASCENDING -> currentEntries.sortedBy { it.name.lowercase() }
+                SortOrder.DESCENDING -> currentEntries.sortedByDescending { it.name.lowercase() }
+            }
+
             val columns =
                 if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 4 else 2
             ImageGrid(columns = columns, entries = sortedEntries) {
@@ -124,7 +132,7 @@ fun GalleryScreen(contentPadding: PaddingValues, sortOrder: SortOrder) {
             }
         }
 
-        // Add image button
+        // Add an image button (only shown if data is not null or based on preference)
         FloatingActionButton(
             onClick = { pickImageLauncher.launch(arrayOf("image/*")) },
             shape = CircleShape,
@@ -143,8 +151,6 @@ fun GalleryScreen(contentPadding: PaddingValues, sortOrder: SortOrder) {
                 newImageUri?.let { uri ->
                     scope.launch {
                         try {
-                            // We must take persistable URI permissions to access the image
-                            // after the initial selection.
                             val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
                             context.contentResolver.takePersistableUriPermission(uri, takeFlags)
 
@@ -156,7 +162,6 @@ fun GalleryScreen(contentPadding: PaddingValues, sortOrder: SortOrder) {
                                 )
                             )
                         } catch (e: SecurityException) {
-                            // This may fail on some devices/older Android versions, but we still try to save it.
                             repository.insert(
                                 QuizItem(
                                     name = name,

@@ -15,5 +15,5 @@ fun generateQuizEntry(correctEntry: GalleryEntry, gallery: List<GalleryEntry>): 
     val wrongNames =
         gallery.filter { it.name != correctEntry.name }.shuffled().take(3).map { it.name }
     val options = (wrongNames + correctEntry.name).shuffled()
-    return QuizEntry(correctEntry.image, options, correctEntry.name)
+    return QuizEntry(correctEntry.uri, options, correctEntry.name)
 }

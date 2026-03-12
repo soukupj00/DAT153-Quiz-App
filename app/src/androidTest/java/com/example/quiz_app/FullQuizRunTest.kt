@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.quiz_app.quiz.QuizActivity
 import com.example.quiz_app.quiz.QuizUiState
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -39,10 +40,12 @@ class FullQuizRunTest {
     /**
      * Simulates a full run through the quiz, with mixed answers,
      * and verifies the final score and navigation back to the home screen.
+     * This test assumes the default 4 seeded items are the only ones in the gallery.
      */
     @Test
     fun testFullQuizRun() {
         Log.d(TAG, "Starting test: testFullQuizRun")
+        val viewModel = composeTestRule.activity.viewModel
 
         // The built-in questions are 4, so we do 2 correct and 2 incorrect
         answerQuestion(shouldBeCorrect = true, expectedScore = 1, questionNumber = 1)
@@ -50,10 +53,19 @@ class FullQuizRunTest {
         answerQuestion(shouldBeCorrect = true, expectedScore = 2, questionNumber = 3)
         answerQuestion(shouldBeCorrect = false, expectedScore = 2, questionNumber = 4)
 
+        // Verify state before finishing
+        val finalQuestionState = viewModel.quizState.value as QuizUiState.Question
+        assertEquals("Final score in ViewModel should be 2", 2, finalQuestionState.score)
+
         composeTestRule.onNodeWithText("Finish").performClick()
         Log.d(TAG, "Quiz finished, navigating to final score screen")
 
-        Log.d(TAG, "Verifying final score is 2 / 4")
+        // Verify Finished state in ViewModel
+        val finishedState = viewModel.quizState.value as QuizUiState.Finished
+        assertEquals("Finished state score should be 2", 2, finishedState.score)
+        assertEquals("Finished state total should be 4", 4, finishedState.total)
+
+        Log.d(TAG, "Verifying final score UI text")
         composeTestRule.onNodeWithText("Score: 2 / 4").assertExists()
 
         // Click the home button and verify we navigate back to MainActivity
@@ -66,7 +78,7 @@ class FullQuizRunTest {
     }
 
     /**
-     * Helper function to answer a single question and verify the score.
+     * Helper function to answer a single question and verify the score via ViewModel state.
      */
     private fun answerQuestion(shouldBeCorrect: Boolean, expectedScore: Int, questionNumber: Int) {
         val viewModel = composeTestRule.activity.viewModel
@@ -87,9 +99,10 @@ class FullQuizRunTest {
             composeTestRule.onNodeWithText(it).performClick()
         }
 
-        val expectedScoreText = "Score: $expectedScore / $questionNumber"
-        Log.d(TAG, "Verifying score is '$expectedScoreText'")
-        composeTestRule.onNodeWithText(expectedScoreText).assertExists()
+        // Robust Assertion: Check ViewModel state
+        val stateAfterClick = viewModel.quizState.value as QuizUiState.Question
+        assertEquals("Score mismatch at question $questionNumber", expectedScore, stateAfterClick.score)
+        assertEquals("Question number mismatch", questionNumber, stateAfterClick.questionNumber)
 
         if (questionNumber < 4) {
             composeTestRule.onNodeWithText("Next").performClick()

@@ -18,9 +18,10 @@ data class QuizItem(
 
     val name: String,
 
-    // The URI of the image associated with the item.
+    // The URI of the image associated with the item (resource or file URI).
     val uri: String,
 
-    // A flag to indicate if the image is a drawable resource or a file URI.
+    // Flag to indicate if it's a built-in drawable. 
+    // While we use URIs for both, keeping this can be useful for certain optimizations or logic.
     val isDrawable: Boolean = false
 )
