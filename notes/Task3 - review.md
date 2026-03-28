@@ -52,6 +52,73 @@ val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
 context.contentResolver.takePersistableUriPermission(uri, takeFlags)
 ```
 
+**The Solution of  the other Project:**
+
+The process of selecting an image is handled through the Storage Access Framework (SAF).
+Same as in our Project the Intent is not manuelly creatat but instead uses the `OpenDocument` contract. This uses the ACTION_OPEN_DOCUMENT intent.
+This Project also uses persistable URI permission to ensure the image can be accessed later. It allows the user to browse through the system's file picker  to select a specific file.
+The return value is a Uri (Uniform Resource Identifier), which represents the location of the selected image. 
+The handling happens inside the trailing lambda of velgBildeLauncher.
+
+```kotlin
+ private val velgBildeLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        // Hvis brukeren avbryter, er uri null
+        // hvis null, avslutt callbacken
+        uri ?: return@registerForActivityResult
+        // Ber Android om å "huske" at appen har lesetilgang til denne bilde-urien
+        try {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: SecurityException) {
+            // For resource-URIer eller i test er persistent tilgang ikke mulig
+        }
+        // Lagrer den valgte Uri i state.
+        ventedeUri = uri
+        // Setter state slik at "gi navn"-dialogen vises
+        visLeggTilDialog = true
+    }
+
+```
+The Parameter passed to the Intend is: arrayOf("image/*").
+It acts as a filter for the file picker, ensuring that the user can only select image files (JPEG, PNG, WebP, etc.).
+Any non-image files will be greyed out in the picker. We also use this is our Project.
+
+```kotlin
+floatingActionButton = {
+    FloatingActionButton(
+        onClick = { velgBildeLauncher.launch(arrayOf("image/*")) }
+    ) {
+        Icon(
+            Icons.Filled.Add,
+            contentDescription = stringResource(R.string.legg_til)
+        )
+    }
+}
+```
+
+The Uri isn't actually "saved" to the app's permanent storage until the user clicks "Confirm" in the naming dialog.
+This function handles the final conversion:
+
+```kotlin
+
+if (visLeggTilDialog && ventedeUri != null) {
+    LeggTilNavnDialog(
+        onBekreft = { navn ->
+            val uri = ventedeUri ?: return@LeggTilNavnDialog
+            viewModel.addImage(navn, uri.toString())
+            ventedeUri = null
+            visLeggTilDialog = false
+        },
+        onAvbryt = {
+            ventedeUri = null
+            visLeggTilDialog = false
+        }
+    )
+}
+```
+
 ### 2b) Quiz Logic & Testing
 
 **How does the quiz choose a new image and wrong choices?**
