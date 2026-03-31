@@ -22,12 +22,14 @@ import kotlinx.coroutines.launch
  * @param savedStateHandle A handle to the saved state of the ViewModel. This is used to
  * restore the quiz state after process death (e.g., orientation change).
  */
-class QuizViewModel(application: Application, private val savedStateHandle: SavedStateHandle) : AndroidViewModel(application) {
+class QuizViewModel(application: Application, private val savedStateHandle: SavedStateHandle) :
+    AndroidViewModel(application) {
 
     private val repository: QuizRepository
 
     // The private, mutable state flow that holds the current UI state.
     private val _quizState = MutableStateFlow<QuizUiState>(QuizUiState.Loading)
+
     // The public, read-only state flow that the UI observes for changes.
     val quizState: StateFlow<QuizUiState> = _quizState.asStateFlow()
 
@@ -37,6 +39,9 @@ class QuizViewModel(application: Application, private val savedStateHandle: Save
     // Properties that are saved and restored automatically by `savedStateHandle`.
     // This is crucial for surviving process death.
     private var currentIndex: Int by savedStateHandle.delegate(0)
+
+    //by introduces property delegation in Kotlin. Instead of the property managing its own backing
+    // field, it hands off the getter/setter logic to a delegate object
     private var score: Int by savedStateHandle.delegate(0)
     private var attempts: Int by savedStateHandle.delegate(0)
     private var selectedOption: String? by savedStateHandle.delegate(null)
@@ -145,8 +150,12 @@ class QuizViewModel(application: Application, private val savedStateHandle: Save
 
 /**
  * A sealed class representing the different states of the Quiz UI.
+ * Used to represent a restricted class hierarchy, where all direct subclasses are known at compile time
+ * and must be defined within the same package and module as the sealed class itself
  */
 sealed class QuizUiState {
+    // Object declarations are singletons that are initialized lazily
+    // (when first accessed) and guaranteed to be thread-safe
     object Loading : QuizUiState()
     data class Question(
         val entry: QuizEntry,
@@ -156,19 +165,29 @@ sealed class QuizUiState {
         val isAnswered: Boolean,
         val selectedOption: String?
     ) : QuizUiState()
+
     data class Finished(val score: Int, val total: Int) : QuizUiState()
 }
 
 /**
  * A delegate for accessing properties from a SavedStateHandle.
  * This is a common pattern to simplify state persistence in ViewModels.
+ * https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate
+ *
+ * SavedStateHandle that returns an anonymous object implementing ReadWriteProperty<Any?, T>
+ * property.name — Kotlin reflection automatically provides the actual property name as a string
+ * (e.g. "score", "currentIndex"), so each property gets its own unique key in the SavedStateHandle map.
+ *
+ * SavedStateHandle is a key-value store that survives process death (system killing the app in background).
+ * Without this, rotating the screen or backgrounding the app would reset score, etc. to their defaults.
  */
-private fun <T> SavedStateHandle.delegate(defaultValue: T) = object : kotlin.properties.ReadWriteProperty<Any?, T> {
-    override fun getValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>): T {
-        return get<T>(property.name) ?: defaultValue
-    }
+private fun <T> SavedStateHandle.delegate(defaultValue: T) =
+    object : kotlin.properties.ReadWriteProperty<Any?, T> {
+        override fun getValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>): T {
+            return get(property.name) ?: defaultValue
+        }
 
-    override fun setValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>, value: T) {
-        set(property.name, value)
+        override fun setValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>, value: T) {
+            set(property.name, value)
+        }
     }
-}
