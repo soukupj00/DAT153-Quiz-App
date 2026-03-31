@@ -93,7 +93,7 @@ if (visLeggTilDialog && ventedeUri != null) {
 
 **Our Solution:**
 
-In our project, we use the modern `ActivityResultContracts.OpenDocument()` with **`rememberLauncherForActivityResult`**. This approach is cleaner than the legacy `startActivityForResult` as it is lifecycle-aware and specifically designed for **Jetpack Compose**.
+In our project, we use the `ActivityResultContracts.OpenDocument()` with **`rememberLauncherForActivityResult`**. This approach is "more modern and cleaner" than the legacy `startActivityForResult` as it's lifecycle-aware and designed for **Jetpack Compose**.
 
 **Our image launcher:**
 
@@ -156,7 +156,8 @@ fun submitAnswer(chosenAnswer: String) {
 
 **Our Solution:**
 
-Our implementation also uses **string comparison** but manages state via boolean flags and a dedicated `QuizUiState` sealed class. When an answer is submitted, we check it against the `correctName` property of our `QuizEntry`.
+Our implementation also uses **string comparison** but manages state via boolean flags and a dedicated `QuizUiState` sealed class. 
+When an answer is submitted, we check it against the `correctName` property of our `QuizEntry`.
 
 ```kotlin
 // In QuizViewModel.kt (Our Solution)
@@ -205,8 +206,10 @@ private fun loadNextQuestion() {
 
 **Our Solution:**
 
-In our project, we handle this through data observation. If the gallery is empty, the `QuizViewModel` remains in the **`Loading` state** because our `loadQuiz` function only proceeds to `updateCurrentQuestion()` if the items list is not empty. 
-For small galleries (1 or 2 images), the quiz **will still run**, but the `generateQuizEntry` logic will simply provide fewer distractor options (resulting in 1 or 2 buttons instead of 4).
+In our project, we handle this through data observation. 
+If the gallery is empty, the `QuizViewModel` remains in the **`Loading` state** because our `loadQuiz` function only proceeds to `updateCurrentQuestion()` if the items list is not empty. 
+For galleries with 1 or 2 images, the quiz **will still run**, but the `generateQuizEntry` logic will simply provide fewer distractor options (resulting in 1 or 2 buttons instead of 4).
+This is an oversight on our part, we should have included a fail state that for example shows a text "No Images in Gallery, can't generate quiz."
 
 ```kotlin
 // In QuizViewModel.kt (Our Solution)
@@ -234,10 +237,11 @@ fun generateQuizEntry(correctEntry: GalleryEntry, gallery: List<GalleryEntry>): 
 
 **Their Solution:**
 
-Yes, their solution is highly testable because they use a **ViewModel** with a single `uiState` (`StateFlow`). 
+Yes, their solution is well done because they use a **ViewModel** with a single `uiState` (`StateFlow`). 
+
 To create a generalized loop that answers a random number of questions correctly or incorrectly, a test only needs to inspect the current state's available options.
 
-How could a loop look like in their tests:
+How the loop could look like in their tests:
 ```kotlin
 @Test
 fun randomized_long_run_test() {
@@ -271,7 +275,9 @@ val totalRounds = 10
 
 **Our Solution:**
 
-Our solution is also built for easy generalization. In `FullQuizRunTest.kt`, we implemented a helper function `answerQuestion` that dynamically finds the correct (or an incorrect) answer text by inspecting the `ViewModel` state before performing the click. This allows us to run a full quiz with any distribution of correct/incorrect answers.
+Our solution is also built for easy generalization. 
+In `FullQuizRunTest.kt`, we implemented a helper function `answerQuestion` that dynamically finds the correct (or an incorrect) answer text by inspecting the `ViewModel` state before performing the click. 
+This allows us to run a full quiz with any distribution of correct/incorrect answers.
 
 ```kotlin
 // In FullQuizRunTest.kt (Our Solution)
@@ -302,12 +308,25 @@ private fun answerQuestion(shouldBeCorrect: Boolean, expectedScore: Int, questio
 
 **Their Solution:**
 
-No. The returned URIs in the URI column do not begin with the provider's authority (`com.example.quizapp.provider.gallery`). Instead, they return the **direct, underlying URI** of the resource.
-As seen in the `adb` output, the provider returns values like `android.resource://com.example.quizapp/2131165320`. 
+No. The returned URIs in the URI column do not begin with the provider's authority (`com.example.quizapp.provider.gallery`). 
+Instead, they return the **direct, underlying URI** of the resource.
+As seen in the `adb` output, the provider returns values like `android.resource://com.example.quizapp/2131165320`.
 
+```bash
+Row: 0 _id=2, name=Hund, URI=android.resource://com.example.quizapp/2131165320
+Row: 1 _id=3, name=Kanin, URI=android.resource://com.example.quizapp/2131165321
+```
 **Our Solution:**
 
-Our **`QuizProvider`** follows a similar pattern. While the provider itself is accessed via `content://com.example.quiz_app.provider/quiz_items`, the URIs returned in the "URI" column are the original URIs stored in our database (which can be `content://` URIs from SAF or other sources).
+Our **`QuizProvider`** also follows a similar pattern. 
+While the provider itself is accessed via `content://com.example.quiz_app.provider/quiz_items`, the URIs returned in the "URI" column are the original URIs stored in our database (which can be `content://` URIs from SAF or other sources).
+
+```bash
+Row: 0 name=Jupiter, URI=android.resource://com.example.quiz_app/2131165280
+Row: 1 name=Mars, URI=android.resource://com.example.quiz_app/2131165281
+Row: 2 name=Venus, URI=android.resource://com.example.quiz_app/2131165299
+Row: 3 name=Uranus, URI=android.resource://com.example.quiz_app/2131165298
+```
 
 #### **Does the provider implement the mandatory columns?**
 
@@ -315,15 +334,16 @@ Our **`QuizProvider`** follows a similar pattern. While the provider itself is a
 
 No. The provider does not implement the mandatory columns defined in the **`OpenableColumns`** interface.
  - It uses `name` instead of `DISPLAY_NAME` (`_display_name`).
- - It completely lacks the `SIZE` (`_size`) column.
- - It uses a custom column name `URI` instead of standard Android content constants.
+ - It lacks the `SIZE` (`_size`) column.
+ - It uses a column name `URI` instead of standard Android content constants.
 
 **Our Solution:**
 
-Our provider also prioritizes the task's requested column names (`name` and `URI`). We use **SQL aliasing** to map our internal Room database columns to these specific names required by the task, rather than implementing `OpenableColumns`.
+Our provider also prioritizes the task's requested column names (`name` and `URI`). 
+We use **SQL aliasing** to map our internal Room database columns to these specific names required by the task, rather than implementing `OpenableColumns`.
 
 ```kotlin
-// In QuizProvider.kt (Our Solution)
+// In QuizProvider.kt
 override fun query(...): Cursor? {
     if (uriMatcher.match(uri) == ITEMS) {
         // Requirement specifies column names "name" and "URI".
@@ -343,66 +363,72 @@ override fun query(...): Cursor? {
 - **Projection Test (--projection):** 
   - Command: `adb shell content query --uri content://com.example.quizapp.provider.gallery/gallery_items --projection name`
   - Result: **Crashed** with the following output:
-  ```text
+
+```bash
 Error while accessing provider:com.example.quizapp.provider.gallery
-java.lang.IllegalArgumentException: columnNames.length = 1, columnValues.length = 3
-        at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:183)
-        at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:153)
-        at android.content.ContentProviderProxy.query(ContentProviderNative.java:495)
-        at com.android.commands.content.Content$QueryCommand.onExecute(Content.java:661)
-        at com.android.commands.content.Content$Command.execute(Content.java:522)
-        at com.android.commands.content.Content.main(Content.java:735)
-        at com.android.internal.os.RuntimeInit.nativeFinishInit(Native Method)
-        at com.android.internal.os.RuntimeInit.main(RuntimeInit.java:410)
-  ```
-  - Reason: This is a coding error in their query method. When you provide a projection (e.g., just "name"), the `MatrixCursor` is initialized with 1 column. However, inside their for loop, they hardcode `cursor.addRow(arrayOf(entity.id, entity.name, entity.uri))`, which attempts to insert 3 values. This mismatch causes the provider to crash when any projection is used.
+  java.lang.IllegalArgumentException: columnNames.length = 1, columnValues.length = 3
+    at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:183)
+    at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:153)
+    at android.content.ContentProviderProxy.query(ContentProviderNative.java:495)
+    at com.android.commands.content.Content$QueryCommand.onExecute(Content.java:661)
+    at com.android.commands.content.Content$Command.execute(Content.java:522)
+    at com.android.commands.content.Content.main(Content.java:735)
+    at com.android.internal.os.RuntimeInit.nativeFinishInit(Native Method)
+    at com.android.internal.os.RuntimeInit.main(RuntimeInit.java:410)
+```
+  - Reason: This is and error in their query method. When you provide a projection (e.g. "name"), the `MatrixCursor` is initialized with 1 column. However, inside their for loop, they hardcode `cursor.addRow(arrayOf(entity.id, entity.name, entity.uri))`, which attempts to insert 3 values. This mismatch causes the provider to crash when any projection is used.
 
 - **Where Test (--where):** 
   - Command: `adb shell content query --uri content://com.example.quizapp.provider.gallery/gallery_items --where "name='Hund'"`
-  - Result: The command ran, but the `selection` parameters were **completely ignored**, returning all rows:
-  ```text
+  - Result: The command ran, but the `selection` parameters were ignored, returning all rows:
+  
+```bash
 Row: 0 _id=2, name=Hund, URI=android.resource://com.example.quizapp/2131165320
 Row: 1 _id=3, name=Kanin, URI=android.resource://com.example.quizapp/2131165321
-  ```
-  - Reason: Looking at the code, the `selection` and `selectionArgs` parameters are passed into the query function but are never used in the DAO call.
+```
+
+  - Reason: Looking at the code, the `selection` and `selectionArgs` parameters are passed into the query function, but are never used in the DAO call.
 
 **Our Solution:**
 
 - **Projection Test:** 
   - Command: `adb shell content query --uri content://com.example.quiz_app.provider/quiz_items --projection name`
-  - Result: Our `QuizProvider` returns all rows and all columns, ignoring the projection but **not crashing**:
-  ```text
+  - Result: Our `QuizProvider` returns all rows and all columns, ignoring the projection, but at least it doesn't crash:
+
+```bash
 Row: 0 name=Jupiter, URI=android.resource://com.example.quiz_app/2131165280
 Row: 1 name=Mars, URI=android.resource://com.example.quiz_app/2131165281
 Row: 2 name=Venus, URI=android.resource://com.example.quiz_app/2131165299
 Row: 3 name=Uranus, URI=android.resource://com.example.quiz_app/2131165298
 Row: 4 name=hdrhhe, URI=content://com.android.providers.media.documents/document/image%3A1000018582
-  ```
+```
+
   - Reason: We use **Room's `database.query()`** with a hardcoded SQL string `SELECT name, uri AS URI FROM quiz_items`. This returns a cursor directly from SQLite. It doesn't crash because the cursor structure is managed by SQLite, but it ignores the `projection` argument.
 
 - **Where Test:** 
   - Command: `adb shell content query --uri content://com.example.quiz_app.provider/quiz_items --where "name=Mars"`
-  - Result: Similar to the other group, our current implementation **ignores filtering** and returns all rows:
-  ```text
+  - Result: Similar to the other group, our current implementation ignores filtering and returns all rows:
+
+```bash
 Row: 0 name=Jupiter, URI=android.resource://com.example.quiz_app/2131165280
 Row: 1 name=Mars, URI=android.resource://com.example.quiz_app/2131165281
 Row: 2 name=Venus, URI=android.resource://com.example.quiz_app/2131165299
 Row: 3 name=Uranus, URI=android.resource://com.example.quiz_app/2131165298
 Row: 4 name=hdrhhe, URI=content://com.android.providers.media.documents/document/image%3A1000018582
-  ```
-  - Reason: Our current implementation passes `null` for the selection arguments in the SQL query. Thus, the selection logic is not yet implemented in the provider's `query` method.
+```
+  - Reason: Our current implementation passes `null` for the selection arguments in the SQL query - the selection logic is not implemented in the provider's `query` method.
 
 ---
 
 ## 3. Comparison Summary
 
-| Feature                | Our Solution | Their Solution |
-|:-----------------------|:--|:--|
-| **Quiz Logic**         | Logic in `QuizUtil` (pure functions). | Logic in `QuizViewModel` using a state machine. |
-| **Gallery Interaction**| `OpenDocument()` via Compose launcher. | `OpenDocument()` via `registerForActivityResult`. |
-| **Small Gallery**      | Runs with available distractors (1-3 options). | Shows a specific **"Too Few Images"** error screen. |
-| **ADB Stability**      | Stable but ignores filtering. | **Crashes** on custom projections. |
-| **Naming**             | English naming convention. | Norwegian naming convention (e.g., `svaralternativer`). |
+| Feature                 | Our Solution                                             | Their Solution                                                                                                                 |
+|:------------------------|:---------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------|
+| **Quiz Logic**          | Logic in `QuizUtil` (pure functions).                    | Logic in `QuizViewModel` using a state machine.                                                                                |
+| **Gallery Interaction** | `OpenDocument()` via Compose launcher.                   | `OpenDocument()` via `registerForActivityResult`.                                                                              |
+| **Small Gallery**       | Works unless gallery is empty (wrong design).            | Shows a specific **"Too Few Images"** error screen.                                                                            |
+| **ADB Stability**       | Does not crash but ignores filtering.                    | **Crashes** on custom projections.                                                                                             |
+| **Language**            | Everything in english and as such can be read withouth issues | Norwegian - had to translate multiple sections of code to get a better understanding of what it's doing |
 
 ---
 
@@ -411,8 +437,8 @@ Row: 4 name=hdrhhe, URI=content://com.android.providers.media.documents/document
 Reviewing Group 4's project was an insightful experience. 
 
 **What we learned:**
-- Their approach to **edge-case handling** (the `MINIMUM_BILDER` check) is very robust and provides a better user experience than allowing a "broken" quiz to start.
-- The **projection crash** in their `ContentProvider` highlighted the importance of dynamically handling column counts when manually building a `MatrixCursor`.
-- Both groups chose to prioritize the task's custom naming requirements (`name`/`URI`) over the standard `OpenableColumns`, which is understandable given the project specifications.
+- Their approach to **edge-case handling** (the `MINIMUM_BILDER` check) is much better than our failing loading implementation and provides a better user experience.
+- The **projection crash** in their `ContentProvider` is not ideal and should be fixed to some degree, at least to prevent crashes, while building a `MatrixCursor`.
 
-Overall, their solution is well-structured and functional, with clear separation of states in the `ViewModel`, though it could benefit from more dynamic SQL handling in the `ContentProvider`.
+Overall, their solution is well-structured and functional, with clear separation of states in the `ViewModel`, though it could benefit from more dynamic SQL handling in the `ContentProvider` and should be written in English next time, 
+so that developers from other countries then Norway can understand the code on the first look.
