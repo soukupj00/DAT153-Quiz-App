@@ -8,7 +8,7 @@
 
 **Date:** 28. 3. 2025
 
-**Reviewers:** Group 13: **Jan Soukup** and **Fabienne Failke**
+**Reviewers:** Group 13: **Jan Soukup** and **Fabienne Feilke**
 
 ---
 
@@ -200,8 +200,7 @@ private fun loadNextQuestion() {
 
 In our project, we handle this through data observation. 
 If the gallery is empty, the `QuizViewModel` remains in the **`Loading` state** because our `loadQuiz` function only proceeds to `updateCurrentQuestion()` if the items list is not empty. 
-For galleries with 1 or 2 images, the quiz **will still run**, but the `generateQuizEntry` logic will simply provide fewer distractor options (resulting in 1 or 2 buttons instead of 4).
-This is an oversight on our part, we should have included a fail state that for example shows a text "No Images in Gallery, can't generate quiz."
+For galleries with 1 or 2 images, the quiz **will still run**, but the `generateQuizEntry` logic will simply provide fewer distractor options (resulting in 1 or 2 buttons instead of 4). This is an oversight on our part, we should have included a fail state that for example shows a text "No Images in Gallery, can't generate quiz."
 
 ```kotlin
 // In QuizViewModel.kt (Our Solution)
