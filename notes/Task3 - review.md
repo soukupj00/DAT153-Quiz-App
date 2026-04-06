@@ -12,17 +12,9 @@
 
 ---
 
-## 1. Initial Checklist
+## Comparative Analysis
 
-- [x] Repository is accessible.
-- [x] Application clones and builds without errors.
-- [x] Application launches correctly on phone/emulator.
-
----
-
-## 2. Comparative Analysis
-
-### 2a) Gallery Interaction
+### a) Gallery Interaction
 
 #### **How does the code make the user select an image in the `GalleryActivity`?**
 
@@ -125,7 +117,7 @@ val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
 context.contentResolver.takePersistableUriPermission(uri, takeFlags)
 ```
 
-### 2b) Quiz Logic & Testing: Describe how the quiz chooses a new image for the next question and the two wrong choices to label the buttons.
+### b) Quiz Logic & Testing: Describe how the quiz chooses a new image for the next question and the two wrong choices to label the buttons.
 
 #### **How is the check if the answer was correct implemented?**
 
@@ -302,7 +294,7 @@ private fun answerQuestion(shouldBeCorrect: Boolean, expectedScore: Int, questio
 
 ---
 
-### 2c) ContentProvider Review
+### c) ContentProvider Review
 
 #### **Do the returned URIs correspond to the URI of the content provider?**
 
@@ -420,7 +412,7 @@ Row: 4 name=hdrhhe, URI=content://com.android.providers.media.documents/document
 
 ---
 
-## 3. Comparison Summary
+## Comparison Summary
 
 | Feature                 | Our Solution                                             | Their Solution                                                                                                                 |
 |:------------------------|:---------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------|
@@ -432,7 +424,7 @@ Row: 4 name=hdrhhe, URI=content://com.android.providers.media.documents/document
 
 ---
 
-## 4. Conclusion & Observations
+## Conclusion & Observations
 
 Reviewing Group 4's project was an insightful experience. 
 
